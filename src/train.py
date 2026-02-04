@@ -97,6 +97,8 @@ def train(opt, tr_dataloader, model, optim, lr_scheduler, val_dataloader=None):
     Train the model with the prototypical learning algorithm
     '''
     device = 'cuda:0' if torch.cuda.is_available() and opt.cuda else 'cpu'
+    print(f"==> Using Device: {device}")
+
 
     if val_dataloader is None:
         best_state = None
