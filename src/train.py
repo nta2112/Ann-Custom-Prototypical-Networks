@@ -114,6 +114,7 @@ def train(opt, tr_dataloader, model, optim, lr_scheduler, val_dataloader=None):
     val_loss = []
     val_acc = []
     best_acc = 0
+    best_epoch = 0
 
     best_model_path = os.path.join(opt.experiment_root, 'best_model.pth')
     last_model_path = os.path.join(opt.experiment_root, 'last_model.pth')
@@ -158,6 +159,7 @@ def train(opt, tr_dataloader, model, optim, lr_scheduler, val_dataloader=None):
         if avg_acc >= best_acc:
             torch.save(model.state_dict(), best_model_path)
             best_acc = avg_acc
+            best_epoch = epoch
             best_state = model.state_dict()
 
     torch.save(model.state_dict(), last_model_path)
@@ -166,7 +168,7 @@ def train(opt, tr_dataloader, model, optim, lr_scheduler, val_dataloader=None):
         save_list_to_file(os.path.join(opt.experiment_root,
                                        name + '.txt'), locals()[name])
 
-    return best_state, best_acc, train_loss, train_acc, val_loss, val_acc
+    return best_state, best_acc, best_epoch, train_loss, train_acc, val_loss, val_acc
 
 
 def test(opt, test_dataloader, model):
@@ -237,14 +239,14 @@ def main():
                 model=model,
                 optim=optim,
                 lr_scheduler=lr_scheduler)
-    best_state, best_acc, train_loss, train_acc, val_loss, val_acc = res
+    best_state, best_acc, best_epoch, train_loss, train_acc, val_loss, val_acc = res
     print('Testing with last model..')
     test(opt=options,
          test_dataloader=test_dataloader,
          model=model)
 
     model.load_state_dict(best_state)
-    print('Testing with best model..')
+    print('Testing with best model.. (Epoch {})'.format(best_epoch))
     test(opt=options,
          test_dataloader=test_dataloader,
          model=model)
