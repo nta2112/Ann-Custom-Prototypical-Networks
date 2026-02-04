@@ -10,6 +10,11 @@ def get_parser():
                         help='path to dataset',
                         default='..' + os.sep + 'dataset')
 
+    parser.add_argument('-data', '--dataset',
+                        type=str,
+                        help='dataset name: omniglot or tlu',
+                        default='omniglot')
+
     parser.add_argument('-exp', '--experiment_root',
                         type=str,
                         help='root where to store models, losses and accuracies',

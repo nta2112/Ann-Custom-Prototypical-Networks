@@ -2,6 +2,7 @@
 from prototypical_batch_sampler import PrototypicalBatchSampler
 from prototypical_loss import prototypical_loss as loss_fn
 from omniglot_dataset import OmniglotDataset
+from tlu_dataset import TLUStatesDataset
 from protonet import ProtoNet
 from parser_util import get_parser
 
@@ -22,7 +23,11 @@ def init_seed(opt):
 
 
 def init_dataset(opt, mode):
-    dataset = OmniglotDataset(mode=mode, root=opt.dataset_root)
+    if opt.dataset == 'tlu':
+        dataset = TLUStatesDataset(mode=mode, root=opt.dataset_root)
+    else:
+        dataset = OmniglotDataset(mode=mode, root=opt.dataset_root)
+    
     n_classes = len(np.unique(dataset.y))
     if n_classes < opt.classes_per_it_tr or n_classes < opt.classes_per_it_val:
         raise(Exception('There are not enough classes in the dataset in order ' +
@@ -57,7 +62,9 @@ def init_protonet(opt):
     Initialize the ProtoNet
     '''
     device = 'cuda:0' if torch.cuda.is_available() and opt.cuda else 'cpu'
-    model = ProtoNet().to(device)
+    # Check if dataset is TLU (RGB) or Omniglot (Grayscale)
+    x_dim = 3 if opt.dataset == 'tlu' else 1
+    model = ProtoNet(x_dim=x_dim).to(device)
     return model
 
 
