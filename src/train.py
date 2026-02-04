@@ -221,8 +221,8 @@ def train(opt, tr_dataloader, model, optim, lr_scheduler, val_dataloader=None):
         # Save to local (FAST)
         save_checkpoint(state, is_best, local_exp_root, local_exp_root)
         
-        # Backup to Drive every 5 epochs OR if best model found (to be safe)
-        if is_best or epoch % 5 == 0:
+        # Backup to Drive every 9 epochs OR if best model found (to be safe)
+        if is_best or epoch % 9 == 0:
             try:
                 if not os.path.exists(opt.experiment_root):
                     os.makedirs(opt.experiment_root)
