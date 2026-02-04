@@ -65,6 +65,15 @@ def init_protonet(opt):
     # Check if dataset is TLU (RGB) or Omniglot (Grayscale)
     x_dim = 3 if opt.dataset == 'tlu' else 1
     model = ProtoNet(x_dim=x_dim).to(device)
+
+    # Resume logic
+    last_model_path = os.path.join(opt.experiment_root, 'last_model.pth')
+    if os.path.isfile(last_model_path):
+        print(f"==> Resuming from {last_model_path}")
+        model.load_state_dict(torch.load(last_model_path))
+    else:
+        print("==> No checkpoint found at '{}'".format(last_model_path))
+
     return model
 
 
