@@ -20,7 +20,7 @@ class TLUStatesDataset(data.Dataset):
         # Determine paths
         # Assuming root is like '/content/drive/MyDrive/Do_an_Data'
         self.split_file = os.path.join(root, 'split.json')
-        self.images_dir = os.path.join(root, 'tlu-states', 'images')
+        self.images_dir = os.path.join(root, 'images')
         
         # If transform is None, use default for ProtoNet
         if transform is None:
