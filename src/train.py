@@ -129,7 +129,7 @@ def train(opt, tr_dataloader, model, optim, lr_scheduler, val_dataloader=None):
     
     if os.path.isfile(drive_checkpoint):
         print(f"==> Resuming from checkpoint: {drive_checkpoint}")
-        checkpoint = torch.load(drive_checkpoint)
+        checkpoint = torch.load(drive_checkpoint, weights_only=False)
         start_epoch = checkpoint['epoch'] + 1
         best_acc = checkpoint.get('best_acc', 0.0)
         best_epoch = checkpoint.get('best_epoch', 0)
