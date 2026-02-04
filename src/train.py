@@ -51,7 +51,8 @@ def init_sampler(opt, labels, mode):
 def init_dataloader(opt, mode):
     dataset = init_dataset(opt, mode)
     sampler = init_sampler(opt, dataset.y, mode)
-    dataloader = torch.utils.data.DataLoader(dataset, batch_sampler=sampler)
+    dataloader = torch.utils.data.DataLoader(dataset, batch_sampler=sampler,
+                                             num_workers=4, pin_memory=True)
     return dataloader
 
 def init_protonet(opt):
@@ -97,8 +98,6 @@ def train(opt, tr_dataloader, model, optim, lr_scheduler, val_dataloader=None):
     Train the model with the prototypical learning algorithm
     '''
     device = 'cuda:0' if torch.cuda.is_available() and opt.cuda else 'cpu'
-    print(f"==> Using Device: {device}")
-
 
     if val_dataloader is None:
         best_state = None
