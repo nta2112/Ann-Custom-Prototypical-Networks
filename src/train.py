@@ -99,8 +99,9 @@ def train(opt, tr_dataloader, model, optim, lr_scheduler, val_dataloader=None):
     '''
     device = 'cuda:0' if torch.cuda.is_available() and opt.cuda else 'cpu'
 
+    best_state = None
     if val_dataloader is None:
-        best_state = None
+        pass
     
     # State tracking
     train_loss = []
