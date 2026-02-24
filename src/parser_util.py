@@ -40,9 +40,14 @@ def get_parser():
                         help='StepLR learning rate scheduler gamma, default=0.5',
                         default=0.5)
 
-    parser.add_argument('-its', '--iterations',
+    parser.add_argument('-itsTr', '--iterations_tr',
                         type=int,
-                        help='number of episodes per epoch, default=100',
+                        help='number of episodes per epoch for training, default=100',
+                        default=100)
+
+    parser.add_argument('-itsVa', '--iterations_val',
+                        type=int,
+                        help='number of episodes per epoch for validation, default=100',
                         default=100)
 
     parser.add_argument('-cTr', '--classes_per_it_tr',

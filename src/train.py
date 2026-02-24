@@ -39,14 +39,16 @@ def init_sampler(opt, labels, mode):
     if 'train' in mode:
         classes_per_it = opt.classes_per_it_tr
         num_samples = opt.num_support_tr + opt.num_query_tr
+        iterations = opt.iterations_tr
     else:
         classes_per_it = opt.classes_per_it_val
         num_samples = opt.num_support_val + opt.num_query_val
+        iterations = opt.iterations_val
 
     return PrototypicalBatchSampler(labels=labels,
                                     classes_per_it=classes_per_it,
                                     num_samples=num_samples,
-                                    iterations=opt.iterations)
+                                    iterations=iterations)
 
 def init_dataloader(opt, mode):
     dataset = init_dataset(opt, mode)
