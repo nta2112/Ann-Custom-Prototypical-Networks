@@ -32,7 +32,7 @@ class OmniglotDataset(data.Dataset):
     raw_folder = 'raw'
     processed_folder = 'data'
 
-    def __init__(self, mode='train', root='..' + os.sep + 'dataset', transform=None, target_transform=None, download=True):
+    def __init__(self, mode='train', root='..' + os.sep + 'dataset', transform=None, target_transform=None, download=True, image_size=28):
         '''
         The items are (filename,category). The index of all the categories can be found in self.idx_classes
         Args:
@@ -40,11 +40,13 @@ class OmniglotDataset(data.Dataset):
         - transform: how to transform the input
         - target_transform: how to transform the target
         - download: need to download the dataset
+        - image_size: size to resize images to
         '''
         super(OmniglotDataset, self).__init__()
         self.root = root
         self.transform = transform
         self.target_transform = target_transform
+        self.image_size = image_size
 
         if download:
             self.download()
@@ -62,8 +64,7 @@ class OmniglotDataset(data.Dataset):
         paths, self.y = zip(*[self.get_path_label(pl)
                               for pl in range(len(self))])
 
-        self.x = map(load_img, paths, range(len(paths)))
-        self.x = list(self.x)
+        self.x = [load_img(path, i, self.image_size) for i, path in enumerate(paths)]
 
     def __getitem__(self, idx):
         x = self.x[idx]
@@ -163,7 +164,7 @@ def get_current_classes(fname):
     return classes
 
 
-def load_img(path, idx):
+def load_img(path, idx, image_size=28):
     path, rot = path.split(os.sep + 'rot')
     if path in IMG_CACHE:
         x = IMG_CACHE[path]
@@ -171,7 +172,7 @@ def load_img(path, idx):
         x = Image.open(path)
         IMG_CACHE[path] = x
     x = x.rotate(float(rot))
-    x = x.resize((28, 28))
+    x = x.resize((image_size, image_size))
 
     shape = 1, x.size[0], x.size[1]
     x = np.array(x, np.float32, copy=False)

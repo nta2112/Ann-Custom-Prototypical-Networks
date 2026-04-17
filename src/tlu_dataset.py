@@ -7,15 +7,17 @@ import torch
 import torchvision.transforms as transforms
 
 class TLUStatesDataset(data.Dataset):
-    def __init__(self, mode='train', root='.', transform=None):
+    def __init__(self, mode='train', root='.', transform=None, image_size=84):
         '''
         Args:
             mode: 'train', 'val', or 'test'
             root: Root path. Expects `split.json` and `tlu-states/images` inside or relative to it.
+            image_size: Target size for resizing images
         '''
         super(TLUStatesDataset, self).__init__()
         self.root = root
         self.mode = mode
+        self.image_size = image_size
         
         # Determine paths
         # Assuming root is like '/content/drive/MyDrive/Do_an_Data'
@@ -25,7 +27,7 @@ class TLUStatesDataset(data.Dataset):
         # If transform is None, use default for ProtoNet
         if transform is None:
             self.transform = transforms.Compose([
-                transforms.Resize((84, 84)),
+                transforms.Resize((image_size, image_size)),
                 transforms.ToTensor(),
                 transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
             ])
@@ -71,7 +73,7 @@ class TLUStatesDataset(data.Dataset):
         except Exception as e:
             print(f"Error loading {img_path}: {e}")
             # Return dummy
-            return torch.zeros((3, 84, 84)), target
+            return torch.zeros((3, self.image_size, self.image_size)), target
 
     def __len__(self):
         return len(self.all_items)

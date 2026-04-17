@@ -24,9 +24,9 @@ def init_seed(opt):
 
 def init_dataset(opt, mode):
     if opt.dataset == 'tlu':
-        dataset = TLUStatesDataset(mode=mode, root=opt.dataset_root)
+        dataset = TLUStatesDataset(mode=mode, root=opt.dataset_root, image_size=opt.image_size)
     else:
-        dataset = OmniglotDataset(mode=mode, root=opt.dataset_root)
+        dataset = OmniglotDataset(mode=mode, root=opt.dataset_root, image_size=opt.image_size)
     
     n_classes = len(np.unique(dataset.y))
     if n_classes < opt.classes_per_it_tr or n_classes < opt.classes_per_it_val:
@@ -64,7 +64,7 @@ def init_protonet(opt):
     device = 'cuda:0' if torch.cuda.is_available() and opt.cuda else 'cpu'
     # Check if dataset is TLU (RGB) or Omniglot (Grayscale)
     x_dim = 3 if opt.dataset == 'tlu' else 1
-    model = ProtoNet(x_dim=x_dim).to(device)
+    model = ProtoNet(backbone=opt.backbone, x_dim=x_dim).to(device)
     return model
 
 def init_optim(opt, model):

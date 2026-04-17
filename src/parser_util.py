@@ -89,4 +89,14 @@ def get_parser():
                         action='store_true',
                         help='enables cuda')
 
+    parser.add_argument('-backbone', '--backbone',
+                        type=str,
+                        help='backbone network: cnn or resnet50, default=cnn',
+                        default='cnn')
+
+    parser.add_argument('-img_size', '--image_size',
+                        type=int,
+                        help='image size for resizing, default=84',
+                        default=84)
+
     return parser
