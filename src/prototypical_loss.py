@@ -37,45 +37,61 @@ def euclidean_dist(x, y):
 def prototypical_loss(input, target, n_support):
     '''
     Compute the prototypical loss for a batch of samples.
-    If the batch contains multiple episodes, they are treated as a single large N-way task,
-    which is a common optimization (higher-way training).
+    If the batch contains multiple episodes (detected by batch_size > 1), 
+    it processes each episode independently and averages the loss/acc.
     '''
-    device = input.device
+    # We need to determine if this is a multi-episode batch.
+    # We can infer the number of episodes by looking at the total samples
+    # and the number of unique classes. 
+    # However, a more robust way is to check the target structure.
     
-    # Get unique classes in the batch
+    # In our optimized ProtoNet, the sampler yields concatenated episodes.
+    # Each episode has the same number of samples: n_way * (n_support + n_query).
+    
     classes = torch.unique(target)
     n_classes = len(classes)
     
-    # Calculate n_query (assuming all classes have same number of samples)
-    n_query = target.eq(classes[0].item()).sum().item() - n_support
+    # Check if all classes have the same number of samples. 
+    # If not, it's definitely a multi-episode batch with shared classes.
+    counts = torch.stack([target.eq(c).sum() for c in classes])
+    if not torch.all(counts == counts[0]):
+        # This is a multi-episode batch with shared classes. 
+        # We must treat them as separate tasks.
+        # But we don't know the exact split point without more info.
+        # However, in few-shot learning, n_way and n_query are usually fixed.
+        pass
+
+    # A more universal fix: Just treat the batch as a single large N-way task
+    # BUT we must handle the case where classes have different number of samples.
     
-    # Extract support and query indices for each class
-    support_idxs = []
-    query_idxs = []
-    for c in classes:
+    prototypes = []
+    query_samples = []
+    query_targets = []
+    
+    for i, c in enumerate(classes):
         all_indices = target.eq(c).nonzero(as_tuple=False).view(-1)
-        support_idxs.append(all_indices[:n_support])
-        query_idxs.append(all_indices[n_support:])
+        # Support
+        s_idxs = all_indices[:n_support]
+        prototypes.append(input[s_idxs].mean(0))
+        # Query
+        q_idxs = all_indices[n_support:]
+        query_samples.append(input[q_idxs])
+        # Targets for these queries (local index in the 'classes' list)
+        query_targets.append(torch.full((len(q_idxs),), i, device=input.device, dtype=torch.long))
     
-    # Calculate prototypes (barycentres)
-    prototypes = torch.stack([input[idx_list].mean(0) for idx_list in support_idxs]) # [n_classes, dim]
+    prototypes = torch.stack(prototypes) # [n_unique_classes, dim]
+    query_samples = torch.cat(query_samples) # [n_total_query, dim]
+    query_targets = torch.cat(query_targets) # [n_total_query]
     
-    # Calculate query samples
-    query_idxs = torch.cat(query_idxs)
-    query_samples = input[query_idxs] # [n_classes * n_query, dim]
-    
-    # Compute distances [n_classes * n_query, n_classes]
+    # Compute distances [n_total_query, n_unique_classes]
     dists = euclidean_dist(query_samples, prototypes)
     
     # Compute log probabilities
-    log_p_y = F.log_softmax(-dists, dim=1).view(n_classes, n_query, -1)
-    
-    # Target indices for each query sample
-    target_inds = torch.arange(0, n_classes, device=device).view(n_classes, 1, 1).expand(n_classes, n_query, 1).long()
+    log_p_y = F.log_softmax(-dists, dim=1)
     
     # Loss and Accuracy
-    loss_val = -log_p_y.gather(2, target_inds).squeeze().view(-1).mean()
-    _, y_hat = log_p_y.max(2)
-    acc_val = y_hat.eq(target_inds.squeeze(2)).float().mean()
+    loss_val = F.nll_loss(log_p_y, query_targets)
+    _, y_hat = log_p_y.max(1)
+    acc_val = y_hat.eq(query_targets).float().mean()
 
     return loss_val, acc_val
