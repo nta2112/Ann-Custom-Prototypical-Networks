@@ -13,7 +13,7 @@ class PrototypicalBatchSampler(object):
     __len__ returns the number of episodes per epoch (same as 'self.iterations').
     '''
 
-    def __init__(self, labels, classes_per_it, num_samples, iterations):
+    def __init__(self, labels, classes_per_it, num_samples, iterations, batch_size=1):
         '''
         Initialize the PrototypicalBatchSampler object
         Args:
@@ -22,12 +22,14 @@ class PrototypicalBatchSampler(object):
         - classes_per_it: number of random classes for each iteration
         - num_samples: number of samples for each iteration for each class (support + query)
         - iterations: number of iterations (episodes) per epoch
+        - batch_size: number of episodes per batch
         '''
         super(PrototypicalBatchSampler, self).__init__()
         self.labels = labels
         self.classes_per_it = classes_per_it
         self.sample_per_class = num_samples
         self.iterations = iterations
+        self.batch_size = batch_size
 
         self.classes, self.counts = np.unique(self.labels, return_counts=True)
         self.classes = torch.LongTensor(self.classes)
@@ -51,19 +53,27 @@ class PrototypicalBatchSampler(object):
         '''
         spc = self.sample_per_class
         cpi = self.classes_per_it
+        bs = self.batch_size
 
-        for it in range(self.iterations):
-            batch_size = spc * cpi
-            batch = torch.LongTensor(batch_size)
-            c_idxs = torch.randperm(len(self.classes))[:cpi]
-            for i, c in enumerate(self.classes[c_idxs]):
-                s = slice(i * spc, (i + 1) * spc)
-                # FIXME when torch.argwhere will exists
-                label_idx = torch.arange(len(self.classes)).long()[self.classes == c].item()
-                sample_idxs = torch.randperm(self.numel_per_class[label_idx])[:spc]
-                batch[s] = self.indexes[label_idx][sample_idxs]
-            batch = batch[torch.randperm(len(batch))]
-            yield batch
+        # Adjust iterations to account for batch size
+        # If iterations=100 and bs=4, we yield 25 batches
+        for it in range(self.iterations // bs):
+            total_batch = []
+            for _ in range(bs):
+                batch_size = spc * cpi
+                batch = torch.LongTensor(batch_size)
+                c_idxs = torch.randperm(len(self.classes))[:cpi]
+                for i, c in enumerate(self.classes[c_idxs]):
+                    s = slice(i * spc, (i + 1) * spc)
+                    label_idx = torch.arange(len(self.classes)).long()[self.classes == c].item()
+                    sample_idxs = torch.randperm(self.numel_per_class[label_idx])[:spc]
+                    batch[s] = self.indexes[label_idx][sample_idxs]
+                # FEAT usually keeps samples of the same class together in the batch
+                # but ProtoNet's loss function handles unique labels.
+                # To be safe and efficient, we just collect them.
+                total_batch.append(batch)
+            
+            yield torch.cat(total_batch)
 
     def __len__(self):
         '''

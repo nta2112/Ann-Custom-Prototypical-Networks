@@ -5,6 +5,7 @@ import os
 import json
 import torch
 import torchvision.transforms as transforms
+from tqdm import tqdm
 
 class TLUStatesDataset(data.Dataset):
     def __init__(self, mode='train', root='.', transform=None, image_size=84):
@@ -63,7 +64,24 @@ class TLUStatesDataset(data.Dataset):
         # Create self.y for PrototypicalBatchSampler
         self.y = [target for _, target in self.all_items]
 
+        # Caching logic
+        self.cache = []
+        # Pre-load all images into memory if mode is train or val (test usually runs once)
+        print(f"==> Pre-loading {mode} dataset into RAM...")
+        for img_path, target in tqdm(self.all_items, desc=f"Caching {mode}"):
+            try:
+                image = Image.open(img_path).convert('RGB')
+                if self.transform:
+                    image = self.transform(image)
+                self.cache.append(image)
+            except Exception as e:
+                print(f"Error caching {img_path}: {e}")
+                self.cache.append(torch.zeros((3, self.image_size, self.image_size)))
+
     def __getitem__(self, idx):
+        if self.cache:
+            return self.cache[idx], self.y[idx]
+            
         img_path, target = self.all_items[idx]
         try:
             image = Image.open(img_path).convert('RGB')

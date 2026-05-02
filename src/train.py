@@ -48,7 +48,8 @@ def init_sampler(opt, labels, mode):
     return PrototypicalBatchSampler(labels=labels,
                                     classes_per_it=classes_per_it,
                                     num_samples=num_samples,
-                                    iterations=iterations)
+                                    iterations=iterations,
+                                    batch_size=opt.batch_size)
 
 def init_dataloader(opt, mode):
     dataset = init_dataset(opt, mode)
@@ -284,6 +285,8 @@ def main():
     init_seed(options)
 
     tr_dataloader = init_dataloader(options, 'train')
+    # Validation and test usually don't need task batching for accuracy measurement, 
+    # but we can enable it if needed. For now, we use bs=1 for val/test to be precise.
     val_dataloader = init_dataloader(options, 'val')
     test_dataloader = init_dataloader(options, 'test')
 

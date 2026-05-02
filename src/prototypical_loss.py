@@ -36,51 +36,46 @@ def euclidean_dist(x, y):
 
 def prototypical_loss(input, target, n_support):
     '''
-    Inspired by https://github.com/jakesnell/prototypical-networks/blob/master/protonets/models/few_shot.py
-
-    Compute the barycentres by averaging the features of n_support
-    samples for each class in target, computes then the distances from each
-    samples' features to each one of the barycentres, computes the
-    log_probability for each n_query samples for each one of the current
-    classes, of appartaining to a class c, loss and accuracy are then computed
-    and returned
-    Args:
-    - input: the model output for a batch of samples
-    - target: ground truth for the above batch of samples
-    - n_support: number of samples to keep in account when computing
-      barycentres, for each one of the current classes
+    Compute the prototypical loss for a batch of samples.
+    If the batch contains multiple episodes, they are treated as a single large N-way task,
+    which is a common optimization (higher-way training).
     '''
-    target_cpu = target.to('cpu')
-    input_cpu = input.to('cpu')
-
-    def supp_idxs(c):
-        # FIXME when torch will support where as np
-        return target_cpu.eq(c).nonzero()[:n_support].squeeze(1)
-
-    # FIXME when torch.unique will be available on cuda too
-    classes = torch.unique(target_cpu)
+    device = input.device
+    
+    # Get unique classes in the batch
+    classes = torch.unique(target)
     n_classes = len(classes)
-    # FIXME when torch will support where as np
-    # assuming n_query, n_target constants
-    n_query = target_cpu.eq(classes[0].item()).sum().item() - n_support
-
-    support_idxs = list(map(supp_idxs, classes))
-
-    prototypes = torch.stack([input_cpu[idx_list].mean(0) for idx_list in support_idxs])
-    # FIXME when torch will support where as np
-    query_idxs = torch.stack(list(map(lambda c: target_cpu.eq(c).nonzero()[n_support:], classes))).view(-1)
-
-    query_samples = input.to('cpu')[query_idxs]
+    
+    # Calculate n_query (assuming all classes have same number of samples)
+    n_query = target.eq(classes[0].item()).sum().item() - n_support
+    
+    # Extract support and query indices for each class
+    support_idxs = []
+    query_idxs = []
+    for c in classes:
+        all_indices = target.eq(c).nonzero(as_tuple=False).view(-1)
+        support_idxs.append(all_indices[:n_support])
+        query_idxs.append(all_indices[n_support:])
+    
+    # Calculate prototypes (barycentres)
+    prototypes = torch.stack([input[idx_list].mean(0) for idx_list in support_idxs]) # [n_classes, dim]
+    
+    # Calculate query samples
+    query_idxs = torch.cat(query_idxs)
+    query_samples = input[query_idxs] # [n_classes * n_query, dim]
+    
+    # Compute distances [n_classes * n_query, n_classes]
     dists = euclidean_dist(query_samples, prototypes)
-
+    
+    # Compute log probabilities
     log_p_y = F.log_softmax(-dists, dim=1).view(n_classes, n_query, -1)
-
-    target_inds = torch.arange(0, n_classes)
-    target_inds = target_inds.view(n_classes, 1, 1)
-    target_inds = target_inds.expand(n_classes, n_query, 1).long()
-
+    
+    # Target indices for each query sample
+    target_inds = torch.arange(0, n_classes, device=device).view(n_classes, 1, 1).expand(n_classes, n_query, 1).long()
+    
+    # Loss and Accuracy
     loss_val = -log_p_y.gather(2, target_inds).squeeze().view(-1).mean()
     _, y_hat = log_p_y.max(2)
     acc_val = y_hat.eq(target_inds.squeeze(2)).float().mean()
 
-    return loss_val,  acc_val
+    return loss_val, acc_val

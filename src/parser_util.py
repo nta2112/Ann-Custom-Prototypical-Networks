@@ -99,4 +99,9 @@ def get_parser():
                         help='image size for resizing, default=84',
                         default=84)
 
+    parser.add_argument('-bs', '--batch_size',
+                        type=int,
+                        help='number of episodes per batch, default=1',
+                        default=1)
+
     return parser
