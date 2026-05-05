@@ -158,10 +158,9 @@ def train(opt, tr_dataloader, model, optim, lr_scheduler, val_dataloader=None):
             x, y = batch
             x, y = x.to(device), y.to(device)
             model_output = model(x)
-            # Use feasibility margin loss (0.1)
+            # Use standard prototypical loss
             loss, acc = loss_fn(model_output, target=y,
-                                n_support=opt.num_support_tr,
-                                margin=0.1)
+                                n_support=opt.num_support_tr)
             loss.backward()
             optim.step()
             current_train_loss.append(loss.item())
@@ -193,8 +192,7 @@ def train(opt, tr_dataloader, model, optim, lr_scheduler, val_dataloader=None):
                     x, y = x.to(device), y.to(device)
                     model_output = model(x)
                     loss, acc = loss_fn(model_output, target=y,
-                                        n_support=opt.num_support_val,
-                                        margin=0.0) # No margin for validation
+                                        n_support=opt.num_support_val)
                     current_val_loss.append(loss.item())
                     current_val_acc.append(acc.item())
             
@@ -278,8 +276,7 @@ def test(opt, test_dataloader, model):
             x, y = x.to(device), y.to(device)
             model_output = model(x)
             _, acc = loss_fn(model_output, target=y,
-                             n_support=opt.num_support_val,
-                             margin=0.0)
+                             n_support=opt.num_support_val)
             avg_acc.append(acc.item())
     avg_acc = np.mean(avg_acc)
     print('Test Acc (Closed World): {}'.format(avg_acc))
