@@ -80,6 +80,17 @@ def get_parser():
                         help='number of samples per class to use as query for validation, default=15',
                         default=15)
 
+    # Open World Validation args
+    parser.add_argument('-nuwVa', '--num_unknown_ways_val',
+                        type=int,
+                        help='number of unknown classes for open-world validation, default=5',
+                        default=5)
+
+    parser.add_argument('-nuqVa', '--num_unknown_queries_val',
+                        type=int,
+                        help='number of unknown queries per unknown class for open-world validation, default=15',
+                        default=15)
+
     parser.add_argument('-seed', '--manual_seed',
                         type=int,
                         help='input for the manual seeds initializations',

@@ -61,6 +61,17 @@ class TLUStatesDataset(data.Dataset):
                 if fname.lower().endswith(('.png', '.jpg', '.jpeg', '.bmp')):
                     self.all_items.append((os.path.join(cls_folder, fname), self.class_to_idx[cls_name]))
 
+        # Create label2ind mapping for easier sampling
+        self.label2ind = {}
+        for idx, (_, target) in enumerate(self.all_items):
+            if target not in self.label2ind:
+                self.label2ind[target] = []
+            self.label2ind[target].append(idx)
+        
+        self.full_class_list = list(self.label2ind.keys())
+        # Store data size for reference (C, H, W)
+        self.data_size = (3, image_size, image_size)
+
         # Create self.y for PrototypicalBatchSampler
         self.y = [target for _, target in self.all_items]
 
@@ -95,3 +106,13 @@ class TLUStatesDataset(data.Dataset):
 
     def __len__(self):
         return len(self.all_items)
+
+    def _get_pil(self, idx):
+        '''Internal helper for sampling logic that might need raw tensors or PIL-like handling'''
+        if self.cache:
+            return self.cache[idx]
+        img_path, _ = self.all_items[idx]
+        image = Image.open(img_path).convert('RGB')
+        if self.transform:
+            image = self.transform(image)
+        return image

@@ -34,35 +34,13 @@ def euclidean_dist(x, y):
     return torch.pow(x - y, 2).sum(2)
 
 
-def prototypical_loss(input, target, n_support):
+def prototypical_loss(input, target, n_support, margin=0.1):
     '''
     Compute the prototypical loss for a batch of samples.
-    If the batch contains multiple episodes (detected by batch_size > 1), 
-    it processes each episode independently and averages the loss/acc.
+    - margin: if > 0, adds a feasibility margin loss (Paper Source 6 aligned)
     '''
-    # We need to determine if this is a multi-episode batch.
-    # We can infer the number of episodes by looking at the total samples
-    # and the number of unique classes. 
-    # However, a more robust way is to check the target structure.
-    
-    # In our optimized ProtoNet, the sampler yields concatenated episodes.
-    # Each episode has the same number of samples: n_way * (n_support + n_query).
-    
     classes = torch.unique(target)
     n_classes = len(classes)
-    
-    # Check if all classes have the same number of samples. 
-    # If not, it's definitely a multi-episode batch with shared classes.
-    counts = torch.stack([target.eq(c).sum() for c in classes])
-    if not torch.all(counts == counts[0]):
-        # This is a multi-episode batch with shared classes. 
-        # We must treat them as separate tasks.
-        # But we don't know the exact split point without more info.
-        # However, in few-shot learning, n_way and n_query are usually fixed.
-        pass
-
-    # A more universal fix: Just treat the batch as a single large N-way task
-    # BUT we must handle the case where classes have different number of samples.
     
     prototypes = []
     query_samples = []
@@ -76,7 +54,7 @@ def prototypical_loss(input, target, n_support):
         # Query
         q_idxs = all_indices[n_support:]
         query_samples.append(input[q_idxs])
-        # Targets for these queries (local index in the 'classes' list)
+        # Targets for these queries
         query_targets.append(torch.full((len(q_idxs),), i, device=input.device, dtype=torch.long))
     
     prototypes = torch.stack(prototypes) # [n_unique_classes, dim]
@@ -89,8 +67,29 @@ def prototypical_loss(input, target, n_support):
     # Compute log probabilities
     log_p_y = F.log_softmax(-dists, dim=1)
     
-    # Loss and Accuracy
+    # Standard NLL Loss
     loss_val = F.nll_loss(log_p_y, query_targets)
+    
+    # ── Feasibility Margin Loss (Paper Source 6) ───────────────────────────
+    # Encourages ground-truth class to be closer than the "best wrong" class by at least 'margin'
+    if margin > 0:
+        # scores = -distances (higher is better)
+        scores = -dists # [n_query, n_classes]
+        
+        # gt_score: scores of the correct class
+        gt_score = scores.gather(1, query_targets.unsqueeze(1)).squeeze(1)
+        
+        # best_wrong_score: max score among incorrect classes
+        # Create mask for incorrect classes
+        mask = torch.ones_like(scores).scatter_(1, query_targets.unsqueeze(1), 0.0)
+        # Apply mask: keep incorrect scores, set correct one to very low value
+        wrong_scores = scores * mask + (1 - mask) * (-1e9)
+        best_wrong = wrong_scores.max(1)[0]
+        
+        # Hinge loss: max(0, best_wrong - gt_score + margin)
+        feasibility_loss = torch.relu(best_wrong - gt_score + margin).mean()
+        loss_val = loss_val + feasibility_loss
+
     _, y_hat = log_p_y.max(1)
     acc_val = y_hat.eq(query_targets).float().mean()
 
